@@ -9,6 +9,7 @@ import { useApiKeys } from '../context/ApiKeyContext';
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
+  isInitialSetup?: boolean;
 }
 
 const GRADES = ['6th', '7th', '8th', '9th', '10th', '11th', '12th'];
@@ -23,7 +24,7 @@ const SUBJECTS = [
   'Geography',
 ];
 
-const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
+const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, isInitialSetup = false }) => {
   const { profile, updateProfile } = useProfile();
   const { getNextValidKey } = useApiKeys();
   const [formData, setFormData] = useState<UserProfile>(profile || {
@@ -36,6 +37,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
   const [channelSearch, setChannelSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string }>>([]);
   const [interest, setInterest] = useState('');
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -106,8 +108,30 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     }));
   };
 
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setFormError('Please enter your name');
+      return false;
+    }
+    if (!formData.grade) {
+      setFormError('Please select your grade');
+      return false;
+    }
+    if (formData.subjects.length === 0) {
+      setFormError('Please select at least one subject');
+      return false;
+    }
+    if (isInitialSetup && formData.favoriteChannels.length === 0) {
+      setFormError('Please add at least one educational channel');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+    
     updateProfile(formData);
     onClose();
   };
@@ -118,13 +142,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-y-auto">
       <div className="bg-white rounded-lg max-w-2xl w-full mx-4 my-8">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-xl font-bold">Edit Profile</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
-            <X className="w-6 h-6" />
-          </button>
+          <h2 className="text-xl font-bold">
+            {isInitialSetup ? 'Complete Your Profile' : 'Edit Profile'}
+          </h2>
+          {!isInitialSetup && (
+            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+              <X className="w-6 h-6" />
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {formError && (
+            <div className="p-3 bg-red-100 text-red-700 rounded-lg">
+              {formError}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Name
@@ -132,7 +166,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
             <input
               type="text"
               value={formData.name}
-              onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={e => {
+                setFormError('');
+                setFormData(prev => ({ ...prev, name: e.target.value }));
+              }}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your name"
             />
@@ -144,7 +181,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
             </label>
             <select
               value={formData.grade}
-              onChange={e => setFormData(prev => ({ ...prev, grade: e.target.value }))}
+              onChange={e => {
+                setFormError('');
+                setFormData(prev => ({ ...prev, grade: e.target.value }));
+              }}
               className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select grade</option>
@@ -164,6 +204,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                   key={subject}
                   type="button"
                   onClick={() => {
+                    setFormError('');
                     setFormData(prev => ({
                       ...prev,
                       subjects: prev.subjects.includes(subject)
@@ -210,7 +251,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
                   <button
                     key={channel.id}
                     type="button"
-                    onClick={() => addChannel(channel)}
+                    onClick={() => {
+                      setFormError('');
+                      addChannel(channel);
+                    }}
                     className="w-full px-4 py-2 text-left hover:bg-gray-50"
                   >
                     {channel.name}
@@ -283,7 +327,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) => {
               type="submit"
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Save Profile
+              {isInitialSetup ? 'Complete Setup' : 'Save Profile'}
             </button>
           </div>
         </form>
